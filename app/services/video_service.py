@@ -1,9 +1,9 @@
-"""
-Video processing service functions
-"""
 
 import cv2
 import pytesseract
+import cv2
+from PIL import Image, ImageOps, ImageFilter
+import json
 import numpy as np
 import tempfile
 import os
@@ -11,6 +11,7 @@ import time
 from typing import List
 from fastapi import UploadFile
 from app.models.schemas import TextExtractionResponse, VideoProcessingRequest
+from app.services.LLM_service import extract_screen_description
 
 
 def validate_video_file(video_file: UploadFile) -> bool:
@@ -142,3 +143,139 @@ def extract_text_from_frame(frame: np.ndarray, confidence_threshold: float = 0.5
     except Exception:
         # Fallback to simple text extraction if confidence filtering fails
         return pytesseract.image_to_string(threshold).strip()
+
+
+
+
+def select_frame(image, prev_image):
+    # Convert to grayscale
+    img1 = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+    img2 = cv2.cvtColor(prev_image, cv2.COLOR_RGB2GRAY)
+
+    # Compute grayscale image difference
+    grayscale_diff = cv2.absdiff(img1, img2)
+
+    # Compute mean and standard deviation
+    mean_diff = np.mean(grayscale_diff)
+    std_diff = np.std(grayscale_diff)
+
+    return mean_diff, std_diff
+
+def process_each_frame(frame,prev_frame,frame_count,fps,list_of_texts):
+    mean_diff, std_diff = select_frame(frame, prev_frame)
+
+    # Calculate timestamp
+    timestamp = frame_count / fps
+    timestamp_str = time.strftime('%H:%M:%S', time.gmtime(timestamp))
+    timestamp_str_ = timestamp_str.replace(":", "-")
+
+    if std_diff > 4:
+        filename = os.path.join("std_diff_frames", f"frame_{frame_count}_at_{timestamp_str_}.jpg")
+       # cv2.imwrite(filename, frame)
+        extracted_text = text_extractor(frame)
+        image_description = extract_screen_description(frame)
+        list_of_texts.append({"time_stamp": timestamp_str, "text": extracted_text , "image_description": image_description})
+
+        # if optical_flow_mean_mag(prev_frame, frame) < 10:
+        #     filename = os.path.join("std_diff_frames_optical", f"frame_{frame_count}_at_{timestamp_str_}.jpg")
+        #     cv2.imwrite(filename, frame)
+
+
+
+
+
+def text_extractor(image):
+    os.makedirs('extracted_frames', exist_ok=True)
+    os.makedirs('threshold', exist_ok=True)
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    cv2.imwrite(f"extracted_frames/frame_{int(time.time())}.jpg", gray)
+
+    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    cv2.imwrite(f"threshold/thresh_{int(time.time())}.jpg", thresh)
+
+    extracted_text = pytesseract.image_to_string(gray)
+
+    return extracted_text
+
+
+def optical_flow_mean_mag(previous, next):
+    # Ensure both frames are grayscale
+    previous_grey = cv2.cvtColor(previous, cv2.COLOR_BGR2GRAY) if len(previous.shape) == 3 else previous
+    next_gray = cv2.cvtColor(next, cv2.COLOR_BGR2GRAY) if len(next.shape) == 3 else next
+
+
+
+    flow = cv2.calcOpticalFlowFarneback(previous_grey, next_gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    mag, ang = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+    mean_mag = np.mean(mag)
+    return mean_mag
+
+
+async def text_extractor_from_video(video_file: UploadFile):
+    print(f"Processing video: {video_file.filename}")
+
+    # Create a temporary file to save the uploaded video
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+        try:
+            # Read the uploaded file content
+            content = await video_file.read()
+            temp_file.write(content)
+            temp_file_path = temp_file.name
+        except Exception as e:
+            raise Exception(f"Error saving uploaded file: {str(e)}")
+
+    try:
+        # Now use the temporary file path with OpenCV
+        cap = cv2.VideoCapture(temp_file_path)
+
+        # Check if video opened successfully
+        if not cap.isOpened():
+            raise Exception("Error: Could not open video file")
+
+        fps = cap.get(cv2.CAP_PROP_FPS)  # Frames per second of the video
+        frame_count = 0
+        prev_frame = None
+        list_of_texts = []
+
+        # # Paths for saving frames
+        # ##mean_diff_folder = "mean_diff_frames"
+        # #std_diff_folder = "std_diff_frames"
+        # std_diff_folder_optical = "std_diff_frames_optical"
+        #
+        # # Create folders if they don't exist
+        # os.makedirs(mean_diff_folder, exist_ok=True)
+        # os.makedirs(std_diff_folder, exist_ok=True)
+        # os.makedirs(std_diff_folder_optical, exist_ok=True)
+
+        while True:
+
+
+            # Read a frame from the video
+            hasFrame, image = cap.read()
+
+            # Break the loop if there are no frames left
+            if not hasFrame:
+                print("End of video reached or cannot fetch the frame.")
+                break
+
+            if prev_frame is not None:  # Ensure prev_frame is valid
+                process_each_frame(image, prev_frame, frame_count, fps, list_of_texts)
+
+            prev_frame = image.copy()
+            frame_count += 1
+
+        # Clean up
+        cap.release()
+        cv2.destroyAllWindows()
+        del cap
+
+        print(f"Extracted text from {len(list_of_texts)} frames.")
+        return list_of_texts
+
+    finally:
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_file_path)
+        except Exception as e:
+            print(f"Warning: Could not delete temporary file {temp_file_path}: {str(e)}")
