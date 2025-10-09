@@ -1,0 +1,17 @@
+.app {
+  max-width: 900px;
+  margin: 24px auto;
+  font-family: Arial, Helvetica, sans-serif;
+  padding: 12px;
+}
+header h1 { margin: 0; }
+main { margin-top: 16px; }
+button { padding: 8px 12px; margin-top: 8px; cursor: pointer; }
+pre { background:#f7f7f7; padding:12px; border-radius:6px; overflow:auto; }
+
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
