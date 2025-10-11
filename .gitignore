@@ -79,3 +79,5 @@ temp/
 # Logs
 *.log
 logs/
+
+frontend/node_modules
