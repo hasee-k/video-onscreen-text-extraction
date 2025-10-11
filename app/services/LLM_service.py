@@ -1,7 +1,6 @@
 import cv2
 import os
 from PIL import Image
-
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -12,46 +11,75 @@ load_dotenv()
 api_key = os.environ.get("GOOGLE_API_KEY")
 if not api_key:
     raise RuntimeError("GOOGLE_API_KEY environment variable not set.")
+
 genai.configure(api_key=api_key)
 
 
 def extract_screen_description(frame) -> str:
     """
     Takes a video frame (NumPy array from OpenCV) and returns a concise description
-    of what is shown in the frame using the Gemini 1.5 Flash model.
+    of what is shown in the frame using the Gemini Flash model.
     """
-    # Convert OpenCV BGR frame to RGB, as PIL and Gemini expect RGB
-    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    pil_image = Image.fromarray(frame_rgb)
-    print("Converted frame to PIL image.")
+    try:
+        # Convert OpenCV BGR frame to RGB, as PIL and Gemini expect RGB
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        pil_image = Image.fromarray(frame_rgb)
+        print("Converted frame to PIL image.")
 
-    # Initialize the Gemini model
-    # The system instruction helps set the context for the model's responses
-    model = genai.GenerativeModel(
-        model_name='gemini-1.5-flash',
-        system_instruction=(
-            "You are a helpful assistant that is given frames from a lecture video. "
-            "You help identify what's on the screen so the student knows when to rewatch the lecture. "
-            "You should concisely describe what is on the screen."
+        # Initialize the Gemini model - using 1.5 Flash which is more stable
+        model = genai.GenerativeModel(
+            model_name='gemini-2.0-flash-exp',
+            system_instruction=(
+                "You are a helpful assistant that analyzes frames from lecture videos. "
+                "Describe what is visible on the screen concisely and objectively."
+            )
         )
-    )
 
-    # Define generation configuration for the model
-    generation_config = genai.types.GenerationConfig(
-        max_output_tokens=50,
-        temperature=0.0
-    )
+        # Define generation configuration for the model
+        generation_config = genai.GenerationConfig(
+            max_output_tokens=100,
+            temperature=0.1
+        )
 
-    # The prompt now includes the text and the PIL image object directly
-    prompt_parts = [
-        "Describe what is shown in this image concisely.",
-        pil_image,
-    ]
+        # Simpler prompt
+        prompt = "Describe what is shown in this image concisely."
 
-    # Generate content using the model
-    response = model.generate_content(
-        prompt_parts,
-        generation_config=generation_config
-    )
+        # Generate content using the model without safety settings
+        response = model.generate_content(
+            [prompt, pil_image],
+            generation_config=generation_config
+        )
 
-    return response.text
+        # Check if response was blocked
+        if response.prompt_feedback.block_reason:
+            return f"Response blocked: {response.prompt_feedback.block_reason}"
+
+        # Handle cases where response has no text
+        if not response.text:
+            return "No text generated. Response may have been filtered."
+
+        return response.text.strip()
+
+    except Exception as e:
+        print(f"Error processing frame: {e}")
+        # Print more detailed error information
+        if hasattr(e, 'response'):
+            print(f"Response details: {e.response}")
+        return f"Error: {str(e)}"
+
+
+def test_api_connection():
+    """
+    Test function to verify API key and list available models
+    """
+    try:
+        print("Testing API connection...")
+        models = genai.list_models()
+        print("\nAvailable Gemini models:")
+        for model in models:
+            if 'gemini' in model.name.lower() and 'generateContent' in model.supported_generation_methods:
+                print(f"  - {model.name}")
+        return True
+    except Exception as e:
+        print(f"API connection test failed: {e}")
+        return False

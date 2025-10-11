@@ -19,6 +19,8 @@ origins = [
     "http://127.0.0.1:3000"
 ]
 
+allow_origins=["*"],
+
 
 app.add_middleware(
     CORSMiddleware,
