@@ -81,7 +81,3 @@ temp/
 logs/
 
 frontend/node_modules
-threshold
-std_diff_frames_optical
-std_diff_frames
-mean_diff_frames
