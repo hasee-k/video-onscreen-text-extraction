@@ -20,7 +20,7 @@ router = APIRouter()
 async def extract_text_from_video_endpoint(video_file: UploadFile = File(...)):
     try:
         result = await text_extractor_from_video(video_file)
-        return {"extracted_text": result["extracted_text"], "frame_count": result.get("frame_count"), "processing_time": result.get("processing_time")}
+        return result["detailed_extraction"]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
 
