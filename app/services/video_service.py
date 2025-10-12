@@ -1,5 +1,5 @@
 
-import cv2
+
 import pytesseract
 import cv2
 from PIL import Image, ImageOps, ImageFilter
@@ -281,6 +281,7 @@ async def text_extractor_from_video(video_file: UploadFile):
             "success": True,
             "message": f"Extracted text from {len(list_of_texts)} frames.",
             "extracted_text": [entry["text"] for entry in list_of_texts],
+            "detailed_extraction": list_of_texts,
             "frame_count": len(list_of_texts),
             "processing_time": processing_time,
         }
