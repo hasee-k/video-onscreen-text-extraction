@@ -14,17 +14,19 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  CircularProgress,
+  Box,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DownloadIcon from "@mui/icons-material/Download";
 import { useTheme } from "@mui/material/styles";
+import ResultView from "./ResultView";
 
 export default function VideoUpload({ darkMode }) {
   const theme = useTheme();
 
-  // --- Favorite colors ---
   const myButtonColor = "#ff5722";
   const myButtonHover = "#6f3726ff";
   const mySecondaryColor = "#4caf50";
@@ -32,19 +34,15 @@ export default function VideoUpload({ darkMode }) {
   const myProgressBar = "#ff9800";
   const mySnackbarBgLight = "#f5f5f5";
   const mySnackbarBgDark = "#ec74e4ff";
-
-  // --- Card Colors by Theme ---
   const cardBg = darkMode ? "#bfe632ff" : "#4fde3fff";
 
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [uploadPct, setUploadPct] = useState(0);
-  const [jobId, setJobId] = useState(null);
-  const [status, setStatus] = useState(null);
   const [result, setResult] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Snackbar state
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -75,8 +73,6 @@ export default function VideoUpload({ darkMode }) {
     setFile(null);
     setPreview(null);
     setUploadPct(0);
-    setJobId(null);
-    setStatus(null);
     setResult(null);
     if (pollRef.current) clearInterval(pollRef.current);
     setSnackbar({
@@ -86,7 +82,6 @@ export default function VideoUpload({ darkMode }) {
     });
   };
 
-  // ---- Upload Handler ----
   const handleUpload = async () => {
     if (!file) {
       setSnackbar({
@@ -99,58 +94,45 @@ export default function VideoUpload({ darkMode }) {
 
     setUploadPct(0);
     setResult(null);
-    setSnackbar({ open: true, message: "Starting upload...", severity: "info" });
+    setLoading(true);
+    setSnackbar({ open: true, message: "Uploading and extracting text...", severity: "info" });
 
     const form = new FormData();
-    // backend expects the UploadFile field named "video_file"
     form.append("video_file", file);
 
     try {
       const res = await axios.post("http://127.0.0.1:8000/api/v1/extract-text", form, {
-
         headers: { "Content-Type": "multipart/form-data" },
         onUploadProgress: (ev) => {
           const pct = Math.round((ev.loaded / ev.total) * 100);
           setUploadPct(pct);
-          setSnackbar({ open: true, message: `Uploading ${pct}%...`, severity: "info" });
         },
-        timeout: 0, // disable timeout for long video processing (backend may take time)
+        timeout: 0,
       });
 
-      // normalize backend response:
-      // - if backend returns an array -> treat as extracted_text array
-      // - if backend returns an object with extracted_text -> keep it
-      // - otherwise, store what's returned under extracted_text
       const data = res.data;
-      let normalized = null;
-
-      if (Array.isArray(data)) {
-        normalized = { extracted_text: data };
-      } else if (data && typeof data === "object" && ("extracted_text" in data || "extractedText" in data)) {
-        // support both snake_case and camelCase
-        normalized = {
-          extracted_text: data.extracted_text ?? data.extractedText,
-          frame_count: data.frame_count ?? data.frameCount,
-          processing_time: data.processing_time ?? data.processingTime,
-          ...data,
-        };
-      } else {
-        // unknown shape: put entire response into a single element array or object
-        normalized = { extracted_text: data ? [data] : [] };
-      }
+      const normalized = {
+        extracted_text: data.extracted_text ?? [],
+        detailed_extraction: data.detailed_extraction ?? [],
+        frame_count: data.frame_count ?? 0,
+        processing_time: data.processing_time ?? 0,
+        message: data.message ?? "Processing complete",
+        success: data.success ?? true,
+      };
 
       setResult(normalized);
       setUploadPct(100);
-      setSnackbar({ open: true, message: "Extraction completed! 🎉", severity: "success" });
+      setSnackbar({ open: true, message: "Extraction completed successfully 🎉", severity: "success" });
     } catch (err) {
       console.error("Upload/extraction error:", err);
-      // show a helpful message depending on error type
       const message =
         err?.response?.data?.detail ||
         err?.response?.data?.error ||
         err?.message ||
         "Upload or extraction failed.";
       setSnackbar({ open: true, message, severity: "error" });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -169,7 +151,7 @@ export default function VideoUpload({ darkMode }) {
 
   return (
     <>
-      <Card sx={{ maxWidth: 650, mx: "auto", mt: 4, backgroundColor: cardBg }}>
+      <Card sx={{ maxWidth: 700, mx: "auto", mt: 4, backgroundColor: cardBg }}>
         <CardContent>
           <Typography variant="h5" gutterBottom sx={{ fontWeight: "bold" }}>
             📽️ Video Text Extraction
@@ -209,16 +191,17 @@ export default function VideoUpload({ darkMode }) {
               value={uploadPct}
               sx={{
                 mt: 2,
-                backgroundColor: theme.palette.mode === "dark" ? "#333" : myProgressBg,
+                backgroundColor: myProgressBg,
                 "& .MuiLinearProgress-bar": { backgroundColor: myProgressBar },
               }}
             />
           )}
 
-          {jobId && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Job ID: <b>{jobId}</b> — Status: {status}
-            </Typography>
+          {loading && (
+            <Box display="flex" alignItems="center" justifyContent="center" sx={{ mt: 3 }}>
+              <CircularProgress color="secondary" />
+              <Typography sx={{ ml: 2 }}>Extracting text... Please wait ⏳</Typography>
+            </Box>
           )}
         </CardContent>
 
@@ -227,13 +210,14 @@ export default function VideoUpload({ darkMode }) {
             <Button
               variant="contained"
               onClick={handleUpload}
+              disabled={loading}
               sx={{
                 backgroundColor: myButtonColor,
                 color: theme.palette.getContrastText(myButtonColor),
                 "&:hover": { backgroundColor: myButtonHover },
               }}
             >
-              Upload & Extract
+              {loading ? "Processing..." : "Upload & Extract"}
             </Button>
           )}
 
@@ -243,13 +227,14 @@ export default function VideoUpload({ darkMode }) {
               color="error"
               startIcon={<DeleteIcon />}
               onClick={deleteVideo}
+              disabled={loading}
             >
               Delete Video
             </Button>
           )}
         </CardActions>
 
-        {result && (
+        {result && !loading && (
           <CardContent>
             <Typography variant="h6" gutterBottom sx={{ fontWeight: "bold" }}>
               Extraction Result
@@ -282,17 +267,13 @@ export default function VideoUpload({ darkMode }) {
         >
           <DialogTitle sx={{ fontWeight: "bold" }}>Extraction Result</DialogTitle>
           <DialogContent dividers>
-            {result?.extracted_text && result.extracted_text.length > 0 ? (
-              <ul>
-                {result.extracted_text.map((line, idx) => (
-                  <li key={idx}>{line}</li>
-                ))}
-              </ul>
-            ) : (
-              <Typography color="error">{result?.error || "No extracted text available."}</Typography>
+            <ResultView preview={preview} result={result} />
+            {result?.frame_count && (
+              <Typography sx={{ mt: 2 }}>Frames Processed: {result.frame_count}</Typography>
             )}
-            {result?.frame_count && <Typography sx={{ mt: 1 }}>Frames Processed: {result.frame_count}</Typography>}
-            {result?.processing_time && <Typography>Processing Time: {result.processing_time}s</Typography>}
+            {result?.processing_time && (
+              <Typography>Processing Time: {result.processing_time}s</Typography>
+            )}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenDialog(false)}>Close</Button>
