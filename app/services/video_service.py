@@ -238,6 +238,9 @@ async def text_extractor_from_video(video_file: UploadFile):
         prev_frame = None
         list_of_texts = []
 
+
+        start_time = time.time()
+
         # # Paths for saving frames
         # ##mean_diff_folder = "mean_diff_frames"
         # #std_diff_folder = "std_diff_frames"
@@ -270,8 +273,21 @@ async def text_extractor_from_video(video_file: UploadFile):
         cv2.destroyAllWindows()
         del cap
 
+        processing_time = round(time.time() - start_time, 2)
+
         print(f"Extracted text from {len(list_of_texts)} frames.")
-        return list_of_texts
+            # ✅ Return a consistent response structure
+        return {
+            "success": True,
+            "message": f"Extracted text from {len(list_of_texts)} frames.",
+            "extracted_text": [entry["text"] for entry in list_of_texts],
+            "frame_count": len(list_of_texts),
+            "processing_time": processing_time,
+        }
+
+    except Exception as e:
+        raise Exception(f"Error processing video: {str(e)}")
+
 
     finally:
         # Clean up the temporary file
