@@ -262,8 +262,19 @@ async def text_extractor_from_video(video_file: UploadFile):
                 print("End of video reached or cannot fetch the frame.")
                 break
 
-            if prev_frame is not None:  # Ensure prev_frame is valid
-                process_each_frame(image, prev_frame, frame_count, fps, list_of_texts)
+            if prev_frame is not None:
+                # Process each frame
+                mean_diff, std_diff = select_frame(image, prev_frame)
+                timestamp = frame_count / fps
+                timestamp_str = time.strftime('%H:%M:%S', time.gmtime(timestamp))
+                if std_diff > 4:
+                    extracted_text = text_extractor(image)
+                    image_description = extract_screen_description(image)
+                    list_of_texts.append({
+                        "time_stamp": timestamp_str,
+                        "text": extracted_text,
+                        "image_description": image_description
+                    })
 
             prev_frame = image.copy()
             frame_count += 1

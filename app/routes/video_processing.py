@@ -17,10 +17,17 @@ router = APIRouter()
 
 
 @router.post("/extract-text")
-async def extract_text_from_video_endpoint(video_file: UploadFile = File(...)):
+async def extract_text_from_video_endpoint(video_file: UploadFile = File(...),
+                                           params: VideoProcessingRequest = None  # Optional processing parameters
+                                           ):
     try:
+        # If params not provided, set defaults
+        if params is None:
+            from app.models.schemas import VideoProcessingRequest
+            params = VideoProcessingRequest(frame_interval=1, confidence_threshold=0.5)
+
         result = await text_extractor_from_video(video_file)
-        return result["detailed_extraction"]
+        return {"extracted_text": result["extracted_text"], "frame_count": result.get("frame_count"), "processing_time": result.get("processing_time")}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
 
