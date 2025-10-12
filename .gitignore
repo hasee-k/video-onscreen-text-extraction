@@ -85,3 +85,4 @@ threshold
 std_diff_frames_optical
 std_diff_frames
 mean_diff_frames
+extracted_frames
