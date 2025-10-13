@@ -27,7 +27,16 @@ async def extract_text_from_video_endpoint(video_file: UploadFile = File(...),
             params = VideoProcessingRequest(frame_interval=1, confidence_threshold=0.5)
 
         result = await text_extractor_from_video(video_file)
-        return {"extracted_text": result["extracted_text"], "frame_count": result.get("frame_count"), "processing_time": result.get("processing_time")}
+        # ✅ Ensure fully structured JSON response
+        response = {
+            "success": True,
+            "message": f"Extracted text from {result.get('frame_count', 0)} frames.",
+            "extracted_text": result.get("extracted_text", []),
+            "detailed_extraction": result.get("detailed_extraction", []),
+            "frame_count": result.get("frame_count", 0),
+            "processing_time": result.get("processing_time", 0),
+        }
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing video: {str(e)}")
 
