@@ -17,14 +17,12 @@ router = APIRouter()
 
 
 @router.post("/extract-text")
-async def extract_text_from_video_endpoint(video_file: UploadFile = File(...),
-                                           params: VideoProcessingRequest = None  # Optional processing parameters
-                                           ):
+async def extract_text_from_video_endpoint(video_file: UploadFile = File(...)):
     try:
         # If params not provided, set defaults
-        if params is None:
-            from app.models.schemas import VideoProcessingRequest
-            params = VideoProcessingRequest(frame_interval=1, confidence_threshold=0.5)
+        # if params is None:
+        #     from app.models.schemas import VideoProcessingRequest
+        #     params = VideoProcessingRequest(frame_interval=1, confidence_threshold=0.5) # what is this?
 
         result = await text_extractor_from_video(video_file)
         # ✅ Ensure fully structured JSON response
