@@ -20,13 +20,14 @@ def extract_screen_description(frame) -> str:
     Takes a video frame (NumPy array from OpenCV) and returns a concise description
     of what is shown in the frame using the Gemini Flash model.
     """
+
+    print("Processing frame for screen description...")
     try:
         # Convert OpenCV BGR frame to RGB, as PIL and Gemini expect RGB
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(frame_rgb)
         print("Converted frame to PIL image.")
 
-        # Initialize the Gemini model - using 1.5 Flash which is more stable
         model = genai.GenerativeModel(
             model_name='gemini-2.0-flash-exp',
             system_instruction=(

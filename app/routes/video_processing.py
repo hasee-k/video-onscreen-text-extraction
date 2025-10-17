@@ -25,7 +25,7 @@ async def extract_text_from_video_endpoint(video_file: UploadFile = File(...)):
         #     params = VideoProcessingRequest(frame_interval=1, confidence_threshold=0.5) # what is this?
 
         result = await text_extractor_from_video(video_file)
-        # ✅ Ensure fully structured JSON response
+
         response = {
             "success": True,
             "message": f"Extracted text from {result.get('frame_count', 0)} frames.",

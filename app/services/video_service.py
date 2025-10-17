@@ -1,5 +1,4 @@
-
-
+import base64
 import pytesseract
 import cv2
 from PIL import Image, ImageOps, ImageFilter
@@ -188,6 +187,8 @@ def text_extractor(image):
     os.makedirs('extracted_frames', exist_ok=True)
     os.makedirs('threshold', exist_ok=True)
 
+    print("Extracting text from frame...")
+
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     cv2.imwrite(f"extracted_frames/frame_{int(time.time())}.jpg", gray)
 
@@ -237,19 +238,7 @@ async def text_extractor_from_video(video_file: UploadFile):
         frame_count = 0
         prev_frame = None
         list_of_texts = []
-
-
         start_time = time.time()
-
-        # # Paths for saving frames
-        # ##mean_diff_folder = "mean_diff_frames"
-        # #std_diff_folder = "std_diff_frames"
-        # std_diff_folder_optical = "std_diff_frames_optical"
-        #
-        # # Create folders if they don't exist
-        # os.makedirs(mean_diff_folder, exist_ok=True)
-        # os.makedirs(std_diff_folder, exist_ok=True)
-        # os.makedirs(std_diff_folder_optical, exist_ok=True)
 
         while True:
 
@@ -270,10 +259,15 @@ async def text_extractor_from_video(video_file: UploadFile):
                 if std_diff > 4:
                     extracted_text = text_extractor(image)
                     image_description = extract_screen_description(image)
+
+                    _, buffer = cv2.imencode('.jpg', image)
+                    image_base64 = base64.b64encode(buffer).decode('utf-8')
+
                     list_of_texts.append({
                         "time_stamp": timestamp_str,
                         "text": extracted_text,
-                        "image_description": image_description
+                        "image_description": image_description,
+                        "image" : image_base64
                     })
 
             prev_frame = image.copy()
@@ -287,7 +281,7 @@ async def text_extractor_from_video(video_file: UploadFile):
         processing_time = round(time.time() - start_time, 2)
 
         print(f"Extracted text from {len(list_of_texts)} frames.")
-            # ✅ Return a consistent response structure
+
         return {
             "success": True,
             "message": f"Extracted text from {len(list_of_texts)} frames.",
@@ -301,9 +295,23 @@ async def text_extractor_from_video(video_file: UploadFile):
         raise Exception(f"Error processing video: {str(e)}")
 
 
+
     finally:
-        # Clean up the temporary file
+
         try:
+
+            cap = None  # Explicitly dereference
+
+            cv2.destroyAllWindows()
+
+            import gc
+
+            gc.collect()  # Force garbage collection
+
+            time.sleep(0.2)
+
             os.unlink(temp_file_path)
+
         except Exception as e:
+
             print(f"Warning: Could not delete temporary file {temp_file_path}: {str(e)}")
