@@ -11,6 +11,11 @@ These instructions will get you a copy of the project up and running on your loc
 ## Setup and Installation
 
 
+### 0. Prerequisites
+  Python
+  Tesseract
+
+
 
 ### 1. Create and activate a virtual environment
 
