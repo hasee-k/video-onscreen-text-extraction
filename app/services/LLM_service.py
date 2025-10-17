@@ -83,4 +83,3 @@ def test_api_connection():
     except Exception as e:
         print(f"API connection test failed: {e}")
         return False
-
