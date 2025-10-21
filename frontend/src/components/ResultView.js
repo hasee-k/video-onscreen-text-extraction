@@ -1,9 +1,45 @@
 // src/components/ResultView.js
-import React from "react";
-import { Typography, Box, Card, CardContent, Divider } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Divider,
+  Typography,
+} from "@mui/material";
+import { useRef } from "react";
 
 export default function ResultView({ preview, result }) {
   const detailed = result?.detailed_extraction ?? [];
+  const videoRef = useRef(null);
+
+  const handleNavigateVideoTimestamp = (timestamp) => {
+    const video = videoRef.current;
+    if (!video || !timestamp) return;
+
+    // Convert "HH:MM:SS" → seconds
+    const parts = timestamp.split(":").map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) {
+      console.warn("Invalid timestamp:", timestamp);
+      return;
+    }
+
+    const [hours, minutes, seconds] = parts;
+    const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+
+    if (!isFinite(timeInSeconds)) return;
+
+    const seek = () => {
+      video.currentTime = timeInSeconds;
+      video.play();
+    };
+
+    if (video.readyState >= 1) {
+      seek();
+    } else {
+      video.addEventListener("loadedmetadata", seek, { once: true });
+    }
+  };
 
   return (
     <Box
@@ -18,6 +54,7 @@ export default function ResultView({ preview, result }) {
       <Box sx={{ flex: 1, minWidth: "45%" }}>
         {preview ? (
           <video
+            ref={videoRef}
             src={preview}
             controls
             style={{
@@ -49,75 +86,79 @@ export default function ResultView({ preview, result }) {
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
-        {detailed.length > 0 ? (
-          detailed.map((entry, idx) => (
-            <Card
-              key={idx}
-              sx={{
-                mb: 2,
-                backgroundColor: "#e3f2fd",
-                borderRadius: 2,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-              }}
-            >
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                  Frame {idx + 1}
-                </Typography>
+        {detailed.map((entry, idx) => (
+          <Card
+            key={idx}
+            sx={{
+              mb: 2,
+              backgroundColor: "#e3f2fd",
+              borderRadius: 2,
+              boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
+            }}
+          >
+            <CardContent>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                Frame {idx + 1}
+              </Typography>
 
-                {/* Timestamp */}
-                {entry.time_stamp && (
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {/* Timestamp */}
+              {entry.time_stamp && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mb: 1 }}
+                >
+                  <Button
+                    variant="text"
+                    onClick={() =>
+                      handleNavigateVideoTimestamp(entry.time_stamp)
+                    }
+                  >
                     🕒 Timestamp: {entry.time_stamp}
-                  </Typography>
+                  </Button>
+                </Typography>
+              )}
+
+              {/* Extracted text */}
+              <Typography sx={{ mb: 1 }}>
+                <strong>📝 Extracted Text:</strong>{" "}
+                {entry.text ? (
+                  <span style={{ color: "#2e7d32" }}>{entry.text}</span>
+                ) : (
+                  <span style={{ color: "gray" }}>No text detected</span>
                 )}
+              </Typography>
 
-                {/* Extracted text */}
-                <Typography sx={{ mb: 1 }}>
-                  <strong>📝 Extracted Text:</strong>{" "}
-                  {entry.text ? (
-                    <span style={{ color: "#2e7d32" }}>{entry.text}</span>
-                  ) : (
-                    <span style={{ color: "gray" }}>No text detected</span>
-                  )}
-                </Typography>
+              {/* Frame description */}
+              <Typography sx={{ mb: 1 }}>
+                <strong>🎞️ Frame Description:</strong>{" "}
+                {entry.image_description ? (
+                  <span style={{ color: "#1565c0" }}>
+                    {entry.image_description}
+                  </span>
+                ) : (
+                  <span style={{ color: "gray" }}>N/A</span>
+                )}
+              </Typography>
 
-                {/* Image/scene description */}
-                <Typography>
-                  <strong>🎞️ Frame Description:</strong>{" "}
-                  {entry.image_description ? (
-                    <span style={{ color: "#1565c0" }}>{entry.image_description}</span>
-                  ) : (
-                    <span style={{ color: "gray" }}>N/A</span>
-                  )}
-                </Typography>
-              </CardContent>
-            </Card>
-          ))
-        ) : result?.extracted_text?.length > 0 ? (
-          result.extracted_text.map((line, idx) => (
-            <Card
-              key={idx}
-              sx={{
-                mb: 2,
-                backgroundColor: "#e3f2fd",
-                borderRadius: 2,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
-              }}
-            >
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                  Frame {idx + 1}
-                </Typography>
-                <Typography>
-                  <strong>📝 Extracted Text:</strong> {line || "No text detected"}
-                </Typography>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Typography color="error">No extracted data available.</Typography>
-        )}
+              {/* 🖼️ Frame image preview */}
+              {entry.image && (
+                <Box
+                  component="img"
+                  src={`data:image/jpeg;base64,${entry.image}`}
+                  alt={`Frame ${idx + 1}`}
+                  sx={{
+                    width: "100%",
+                    maxHeight: "300px",
+                    objectFit: "contain",
+                    borderRadius: 1,
+                    mt: 1,
+                  }}
+                />
+              )}
+            </CardContent>
+          </Card>
+        ))}
       </Box>
     </Box>
   );

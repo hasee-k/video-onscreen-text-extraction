@@ -1,27 +1,27 @@
 // src/components/VideoUpload.js
-import React, { useState, useEffect, useRef } from "react";
-import axios from "axios";
-import {
-  Button,
-  LinearProgress,
-  Typography,
-  Card,
-  CardContent,
-  CardActions,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Snackbar,
-  Alert,
-  CircularProgress,
-  Box,
-} from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
-import VisibilityIcon from "@mui/icons-material/Visibility";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  LinearProgress,
+  Snackbar,
+  Typography,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import axios from "axios";
+import { useEffect, useRef, useState } from "react";
 import ResultView from "./ResultView";
 
 export default function VideoUpload({ darkMode }) {
@@ -95,20 +95,28 @@ export default function VideoUpload({ darkMode }) {
     setUploadPct(0);
     setResult(null);
     setLoading(true);
-    setSnackbar({ open: true, message: "Uploading and extracting text...", severity: "info" });
+    setSnackbar({
+      open: true,
+      message: "Uploading and extracting text...",
+      severity: "info",
+    });
 
     const form = new FormData();
     form.append("video_file", file);
 
     try {
-      const res = await axios.post("http://127.0.0.1:8000/api/v1/extract-text", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (ev) => {
-          const pct = Math.round((ev.loaded / ev.total) * 100);
-          setUploadPct(pct);
-        },
-        timeout: 0,
-      });
+      const res = await axios.post(
+        "http://127.0.0.1:8000/api/v1/extract-text",
+        form,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+          onUploadProgress: (ev) => {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            setUploadPct(pct);
+          },
+          timeout: 0,
+        }
+      );
 
       const data = res.data;
       const normalized = {
@@ -122,7 +130,11 @@ export default function VideoUpload({ darkMode }) {
 
       setResult(normalized);
       setUploadPct(100);
-      setSnackbar({ open: true, message: "Extraction completed successfully 🎉", severity: "success" });
+      setSnackbar({
+        open: true,
+        message: "Extraction completed successfully 🎉",
+        severity: "success",
+      });
     } catch (err) {
       console.error("Upload/extraction error:", err);
       const message =
@@ -138,7 +150,9 @@ export default function VideoUpload({ darkMode }) {
 
   const downloadResult = () => {
     if (!result) return;
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify(result, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
@@ -146,7 +160,11 @@ export default function VideoUpload({ darkMode }) {
     a.download = `extraction_result_${ts}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    setSnackbar({ open: true, message: "Result downloaded as JSON ✅", severity: "success" });
+    setSnackbar({
+      open: true,
+      message: "Result downloaded as JSON ✅",
+      severity: "success",
+    });
   };
 
   return (
@@ -177,7 +195,11 @@ export default function VideoUpload({ darkMode }) {
             />
           </Button>
 
-          {file && <Typography variant="body2" sx={{ mt: 1 }}>Selected: {file.name}</Typography>}
+          {file && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Selected: {file.name}
+            </Typography>
+          )}
 
           {preview && (
             <div style={{ marginTop: 12 }}>
@@ -198,9 +220,16 @@ export default function VideoUpload({ darkMode }) {
           )}
 
           {loading && (
-            <Box display="flex" alignItems="center" justifyContent="center" sx={{ mt: 3 }}>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              sx={{ mt: 3 }}
+            >
               <CircularProgress color="secondary" />
-              <Typography sx={{ ml: 2 }}>Extracting text... Please wait ⏳</Typography>
+              <Typography sx={{ ml: 2 }}>
+                Extracting text... Please wait ⏳
+              </Typography>
             </Box>
           )}
         </CardContent>
@@ -249,7 +278,10 @@ export default function VideoUpload({ darkMode }) {
             </Button>
             <Button
               variant="contained"
-              sx={{ backgroundColor: mySecondaryColor, color: theme.palette.getContrastText(mySecondaryColor) }}
+              sx={{
+                backgroundColor: mySecondaryColor,
+                color: theme.palette.getContrastText(mySecondaryColor),
+              }}
               startIcon={<DownloadIcon />}
               onClick={downloadResult}
             >
@@ -261,18 +293,24 @@ export default function VideoUpload({ darkMode }) {
         <Dialog
           open={openDialog}
           onClose={() => setOpenDialog(false)}
-          maxWidth="md"
+          maxWidth="xlg"
           fullWidth
           PaperProps={{ sx: { backgroundColor: cardBg } }}
         >
-          <DialogTitle sx={{ fontWeight: "bold" }}>Extraction Result</DialogTitle>
+          <DialogTitle sx={{ fontWeight: "bold" }}>
+            Extraction Result
+          </DialogTitle>
           <DialogContent dividers>
             <ResultView preview={preview} result={result} />
             {result?.frame_count && (
-              <Typography sx={{ mt: 2 }}>Frames Processed: {result.frame_count}</Typography>
+              <Typography sx={{ mt: 2 }}>
+                Frames Processed: {result.frame_count}
+              </Typography>
             )}
             {result?.processing_time && (
-              <Typography>Processing Time: {result.processing_time}s</Typography>
+              <Typography>
+                Processing Time: {result.processing_time}s
+              </Typography>
             )}
           </DialogContent>
           <DialogActions>
